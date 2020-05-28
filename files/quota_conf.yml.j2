@@ -1,0 +1,18 @@
+main:
+  database_system: "postgresql|mysql"
+  root_user: "root"
+  root_user_password: "12345"
+  send_mail_from: "example@example.com"
+  smtp_server: "smtp.example.com"
+  #log_path: "/path/to/log_path"
+
+databases:
+  - database_name: "{{ database.name }}"
+    quota_soft: "5G"
+    quota_hard: "6G"
+    database_user_mail: "db-user@example.com"
+
+  - database_name: "{{ database.name2 }}"
+    quota_soft: "5G"
+    quota_hard: "6G"
+    database_user_mail: "db-user2@example.com"

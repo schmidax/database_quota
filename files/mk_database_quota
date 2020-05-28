@@ -1,0 +1,91 @@
+#!/usr/bin/python3
+
+import sys, os
+import yaml
+
+CONFIG_DIR = "/etc/database_quota"
+
+with open("/etc/database_quota/quota_conf.yml", "r") as configfile:
+    databases = yaml.load(configfile)
+    configfile.close()
+
+with open("/usr/local/bin/database_quota/state.yml", "r") as statefile:
+    state = yaml.load(statefile)
+    statefile.close()
+
+
+def convert_from_human_to_byte(size):
+    if size[-1] == 'B':
+        size = size[:-1]
+    if size.isdigit():
+        bytes = int(size)
+    else:
+        bytes = size[:-1]
+        unit = size[-1]
+        if bytes.isdigit():
+            bytes = int(bytes)
+            if unit == 'G':
+                bytes *= 1073741824
+            elif unit == 'M':
+                bytes *= 1048576
+            elif unit == 'K':
+                bytes *= 1024
+            else:
+                bytes = 0
+        else:
+            bytes = 0
+    return bytes
+
+
+status = os.system('systemctl is-active --quiet database_quota.service')
+if status == 0:
+    sys.stdout.write("0 Quota_Service - Service is running\n")
+else:
+    sys.stdout.write("2 Quota_Service - Service is running\n")
+
+
+def log_dir():
+    with open(CONFIG_DIR + "/quota_conf.yml", "r") as ymlfile:
+        config = yaml.load(ymlfile)
+        ymlfile.close()
+    try:
+        path = config["main"]["log_path"] + "/database_quota.log"
+    except:
+        if config["main"]["database_system"] == "postgresql":
+            path = "/var/log/postgresql/database_quota.log"
+        elif config["main"]["database_system"] == "mysql":
+            path = "/var/log/mysql/database_quota.log"
+    return path
+
+
+log_path = log_dir()
+log_file = open(log_path, 'r')
+check = False
+for line in log_file:
+    if 'ERROR' in line:
+        check = True
+
+if check:
+    sys.stdout.write("2 Quota_Log - Error in Log file\n")
+else:
+    sys.stdout.write("0 Quota_Log - No Error in Log file\n")
+
+
+for database in databases["databases"]:
+    soft_limit = convert_from_human_to_byte(database["quota_soft"])
+    hard_limit = convert_from_human_to_byte(database["quota_hard"])
+    aktual_size = state[database["database_name"]]["Size"]
+    percentage = float(aktual_size) / float(hard_limit) * 100
+    percentage = int(percentage)
+    soft_limit_mb = int(soft_limit / 1024 / 1024)
+    hard_limit_mb = int(hard_limit / 1024 / 1024)
+    aktual_size_mb = int(aktual_size / 1024 / 1024)
+    if aktual_size < soft_limit:
+        sys.stdout.write("0 Quota_%s humidity=%s;;;0;100 actual size: %sMB, actual size in percent: %s%%, soft limit: %sMB, "
+                         "hard limit: %sMB\n" % (database["database_name"], percentage, aktual_size_mb, percentage, soft_limit_mb, hard_limit_mb))
+    elif aktual_size < hard_limit:
+        sys.stdout.write("1 Quota_%s humidity=%s;;;0;100 actual size: %sMB, actual size in percent: %s%%, soft limit: %sMB, "
+                         "hard limit: %sMB\n" % (database["database_name"], percentage, aktual_size_mb, percentage, soft_limit_mb, hard_limit_mb))
+    else:
+        sys.stdout.write("2 Quota_%s humidity=%s;;;0;100 actual size: %sMB, actual size in percent: %s%%, soft limit: %sMB, "
+                         "hard limit: %sMB\n" % (database["database_name"], percentage, aktual_size_mb, percentage, soft_limit_mb, hard_limit_mb))

@@ -1,0 +1,11 @@
+[Unit]
+Description=Quota for Databases
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/database_quota/database_quota.py
+User=mysql
+
+[Install]
+WantedBy=multi-user.target
+Alias=database_quota.service

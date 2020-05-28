@@ -1,0 +1,11 @@
+From: <{sender}>
+To: {address}
+Subject: text
+
+text...
+
+# parameter:
+#
+# {database_name}
+# {limit_soft}B
+# {limit_hard}B
